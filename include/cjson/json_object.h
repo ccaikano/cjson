@@ -4,142 +4,120 @@
 
 #pragma once
 
-#include <map> // map
-#include <string> // string
-#include <vector> // vector
+#include <map>     // map
+#include <string>  // string
+#include <utility>
 #include <variant>
+#include <vector>  // vector
 
-#include <cjson/value_t.h>
-#include <cjson/number.h>
-#include <cjson/macro_scope.h>
-#include <cjson/type_traits.h>
+namespace cjson {
 
-namespace cc::cjson {
-/**
- * @brief json对象类
- */
+enum class JsonObjectType {
+  kNull,
+  kBool,
+  kInt,
+  kFloat,
+  kNumber,
+  kString,
+  kArray,
+  kObject,
+  kInvalid
+};
+
+const char* to_string(JsonObjectType e) {
+  switch (e) {
+    case JsonObjectType::kNull:
+      return "null";
+    case JsonObjectType::kBool:
+      return "bool";
+    case JsonObjectType::kFloat:
+      return "float";
+    case JsonObjectType::kNumber:
+      return "number";
+    case JsonObjectType::kString:
+      return "string";
+    case JsonObjectType::kArray:
+      return "array";
+    case JsonObjectType::kObject:
+      return "object";
+    case JsonObjectType::kInt:
+      return "int";
+    case JsonObjectType::kInvalid:
+      return "invalid";
+  }
+}
+template <typename char_t = char>
+class JsonObject;
+using Json = JsonObject<>;
+
+template <typename char_t>
 class JsonObject {
  public:
-  /// 字符类型
-  using char_t = char;
-  /// 字符串类型
-  using string_t = std::basic_string<char_t>;
-  /// 对象类型
-  using object_t = std::map<string_t, JsonObject>;
-  /// 数组类型
-  using array_t = std::vector<JsonObject>;
-  /// 布尔类型
-  using boolean_t = bool;
-
-  using integer_t = std::int64_t;
-
+  using null_t = std::monostate;
+  using int_t = int64_t;
   using float_t = double;
+  using bool_t = bool;
+  using string_t = std::basic_string<char_t>;
+  using array_t = std::vector<JsonObject>;
+  using object_t = std::map<string_t, JsonObject>;
+  using value_t =
+      std::variant<null_t, bool_t, int_t, float_t, string_t, array_t, object_t>;
 
-  /// 数字类型
-  using number_t = number<integer_t , float_t>;
-  /// 值类型
-  using data_t = std::variant<number_t, string_t, boolean_t, object_t, array_t>;
+  explicit JsonObject(std::nullptr_t = nullptr)
+      : m_value(std::monostate{}), m_type(JsonObjectType::kNull) {}
 
-  JsonObject() : m_data(nullptr), m_type(value_t::Null) {}
-
-  JsonObject(const JsonObject &other) = delete;
-
-  JsonObject &operator=(const JsonObject &other) = delete;
-
-  JsonObject(JsonObject &&other) noexcept = default;
-
-  JsonObject &operator=(JsonObject &&) noexcept = default;
-
-
-  template<typename T, typename std::enable_if_t<is_number<T>::value, int> = 0>
-  explicit JsonObject(T value):m_data(number_t(value)), m_type(value_t::Number) {}
-
-  explicit JsonObject(boolean_t value) : m_data(value), m_type(value_t::Boolean) {}
-
-  explicit JsonObject(const char_t *value) : m_data(string_t(value)), m_type(value_t::String) {}
-
-  explicit JsonObject(string_t value) : m_data(std::move(value)), m_type(value_t::String) {}
-
-  explicit JsonObject(object_t value) : m_data(std::move(value)), m_type(value_t::Object) {}
-
-  explicit JsonObject(array_t value) : m_data(std::move(value)), m_type(value_t::Array) {}
-
-  [[nodiscard]] value_t type() const { return m_type; }
-
-  [[nodiscard]] bool isNull() const { return m_type == value_t::Null; }
-
-  [[nodiscard]] bool isNumber() const { return m_type == value_t::Number; }
-
-  [[nodiscard]] bool isInteger() const { return m_type == value_t::Number && std::get_if<number_t>(&m_data)->isInteger(); }
-
-  [[nodiscard]] bool isFloat() const { return m_type == value_t::Number && std::get_if<number_t>(&m_data)->isFloat(); }
-
-  [[nodiscard]] bool isString() const { return m_type == value_t::String; }
-
-  [[nodiscard]] bool isBoolean() const { return m_type == value_t::Boolean; }
-
-  [[nodiscard]] bool isObject() const { return m_type == value_t::Object; }
-
-  [[nodiscard]] bool isArray() const { return m_type == value_t::Array; }
-
-  [[nodiscard]] bool contains(const string_t &key) const {
-    if (CC_LIKELY(isObject())) {
-      return asObject().count(key) > 0;
+  JsonObject(const JsonObject&) = delete;
+  JsonObject& operator=(const JsonObject&) = delete;
+  JsonObject(JsonObject&& other) noexcept
+      : m_value(std::exchange(other.m_value, null_t{})),
+        m_type(std::exchange(other.m_type, JsonObjectType::kNull)) {}
+  JsonObject& operator=(JsonObject&& other) noexcept {
+    if (this != &other) {
+      m_value = std::exchange(other.m_value, null_t{});
+      m_type = std::exchange(other.m_type, JsonObjectType::kNull);
     }
-    return false;
+    return *this;
   }
 
+  template <typename T, std::enable_if_t<std::is_integral_v<std::decay_t<T>>, int> = 0>
+  explicit JsonObject(T&& value)
+      : m_value(value), m_type(JsonObjectType::kInt) {}
+
+  template <typename T, std::enable_if_t<std::is_floating_point_v<std::decay_t<T>>, int> = 0>
+  explicit JsonObject(T&& value)
+      : m_value(value), m_type(JsonObjectType::kFloat) {}
+
+  explicit JsonObject(bool_t&& value)
+      : m_value(value), m_type(JsonObjectType::kBool) {}
 
 
-  [[nodiscard]] integer_t asInteger() const {
-    if (CC_LIKELY(isNumber())) {
-      return std::get<number_t>(m_data).asInteger();
-    }
-    THROW_ERROR("Not a number")
-  }
+  explicit JsonObject(const string_t& value)
+      : m_value(value), m_type(JsonObjectType::kString) {}
+  explicit JsonObject(string_t&& value)
+      : m_value(std::move(value)), m_type(JsonObjectType::kString) {}
+  explicit JsonObject(const char_t* value)
+      : m_value(std::move(string_t(value))), m_type(JsonObjectType::kString) {}
 
-  [[nodiscard]] float_t asFloat() const {
-    if (CC_LIKELY(isNumber())) {
-      return std::get<number_t>(m_data).asFloat();
-    }
-    THROW_ERROR("Not a number")
-  }
+  explicit JsonObject(array_t& value)
+      : m_value(std::move(value)), m_type(JsonObjectType::kArray) {}
+  explicit JsonObject(array_t&& value)
+      : m_value(std::move(value)), m_type(JsonObjectType::kArray) {}
 
-  [[nodiscard]] boolean_t asBoolean() const {
-    if (CC_LIKELY(isBoolean())) {
-      return std::get<boolean_t>(m_data);
-    }
-    THROW_ERROR("Not a boolean")
-  }
+  explicit JsonObject(object_t& value)
+      : m_value(std::move(value)), m_type(JsonObjectType::kObject) {}
+  explicit JsonObject(object_t&& value)
+      : m_value(std::move(value)), m_type(JsonObjectType::kObject) {}
 
+  template <typename... args_t>
+  explicit JsonObject(const JsonObjectType type, args_t&&... args)
+      : m_value(std::forward<args_t>(args)...), m_type(type) {}
 
-  [[nodiscard]] const string_t& asString() const {
-    if (CC_LIKELY(isString())) {
-      return std::get<string_t>(m_data);
-    }
-    THROW_ERROR("Not a string")
-  }
-
-  [[nodiscard]] const object_t& asObject() const {
-    if (CC_LIKELY(isObject())) {
-      return std::get<object_t>(m_data);
-    }
-    THROW_ERROR("Not an object")
-  }
-
-  [[nodiscard]] const array_t& asArray() const {
-    if (CC_LIKELY(isArray())) {
-      return std::get<array_t>(m_data);
-    }
-    THROW_ERROR("Not an array")
-  }
-
+  [[nodiscard]] JsonObjectType type() const { return m_type; }
 
  private:
-  data_t m_data;
-  value_t m_type;
+  value_t m_value;
+  JsonObjectType m_type;
 };
-} // cc::cjson
-
+}  // namespace cjson
 
 #include <cjson/macro_unscope.h>

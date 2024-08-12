@@ -10,8 +10,11 @@ FetchContent_MakeAvailable(doctest)
 
 
 file(GLOB TEST_FILES "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cc")
-message(${TEST_FILES})
-add_executable(unittest ${TEST_FILES})
-target_link_libraries(unittest doctest_with_main cjson)
+foreach (file  ${TEST_FILES})
+    # 获取文件名（不包括路径和扩展名）
+    get_filename_component(filename ${file} NAME_WE)
+    add_executable(${filename} ${file})
+    target_link_libraries(${filename} doctest_with_main cjson)
+endforeach()
 
 

@@ -6,7 +6,7 @@
 
 #include <type_traits>
 
-namespace cc::cjson {
+namespace cjson {
 
 template<typename T, typename = void>
 struct is_boolean : public std::false_type {

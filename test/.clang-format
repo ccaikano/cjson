@@ -1,0 +1,6 @@
+BasedOnStyle: Google
+
+BraceWrapping:
+  AfterFunction: false
+  AfterFunctionInEmptyBody: false
+  SplitEmptyFunction: false

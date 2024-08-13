@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <cstdint>
 #include <map>     // map
 #include <string>  // string
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>  // vector
@@ -44,22 +46,25 @@ const char* to_string(JsonObjectType e) {
       return "int";
     case JsonObjectType::kInvalid:
       return "invalid";
+    default:
+      return "unknow";
   }
 }
-template <typename char_t = char>
+template <typename string_t = std::string>
 class JsonObject;
 using Json = JsonObject<>;
 
-template <typename char_t>
+template <typename string_t>
 class JsonObject {
  public:
   using null_t = std::monostate;
   using int_t = int64_t;
   using float_t = double;
   using bool_t = bool;
-  using string_t = std::basic_string<char_t>;
+  // using string_t = std::basic_string<char_t>;
   using array_t = std::vector<JsonObject>;
-  using object_t = std::map<string_t, JsonObject>;
+  using object_t = std::unordered_map<string_t, JsonObject>;
+  using char_t = typename string_t::value_type;
   using value_t =
       std::variant<null_t, bool_t, int_t, float_t, string_t, array_t, object_t>;
 
@@ -79,17 +84,19 @@ class JsonObject {
     return *this;
   }
 
-  template <typename T, std::enable_if_t<std::is_integral_v<std::decay_t<T>>, int> = 0>
+  template <typename T,
+            std::enable_if_t<std::is_integral_v<std::decay_t<T>>, int> = 0>
   explicit JsonObject(T&& value)
       : m_value(value), m_type(JsonObjectType::kInt) {}
 
-  template <typename T, std::enable_if_t<std::is_floating_point_v<std::decay_t<T>>, int> = 0>
+  template <
+      typename T,
+      std::enable_if_t<std::is_floating_point_v<std::decay_t<T>>, int> = 0>
   explicit JsonObject(T&& value)
       : m_value(value), m_type(JsonObjectType::kFloat) {}
 
   explicit JsonObject(bool_t&& value)
       : m_value(value), m_type(JsonObjectType::kBool) {}
-
 
   explicit JsonObject(const string_t& value)
       : m_value(value), m_type(JsonObjectType::kString) {}
@@ -113,6 +120,9 @@ class JsonObject {
       : m_value(std::forward<args_t>(args)...), m_type(type) {}
 
   [[nodiscard]] JsonObjectType type() const { return m_type; }
+  [[nodiscard]] bool valid() const {
+    return m_type != JsonObjectType::kInvalid;
+  }
 
  private:
   value_t m_value;

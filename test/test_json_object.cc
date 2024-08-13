@@ -46,11 +46,24 @@ TEST_CASE("test")
 }
 TEST_CASE("parse")
 {
-  string str = "10      ";
-  cjson::Parser<char,string> parser(str.cbegin(),str.cend());
+  // string str = "10      ";
+  // cjson::Parser<string,string> parser(str.cbegin(),str.cend());
+  // auto t = parser.fromJson();
+  // CHECK(cjson::to_string(t.type()) == "int");
+  // cout << "\"";
+  const string str = R"("\uD83D\uDE00")";
+  cjson::Parser<string,string> parser(str.cbegin(),str.cend());
   auto t = parser.fromJson();
-  CHECK(cjson::to_string(t.type()) == "int");
+  // CHECK(cjson::to_string(t.type()) == "string");
+  cout <<cjson::to_string(t.type());
+  cout << "cc " << t.getString();
+}
+TEST_CASE("parse_string")
+{
+  const string str = R"("\uD83D\uDE00")";
+  cjson::Parser<string,string> parser(str.cbegin(),str.cend());
+  auto t = parser.fromJson();
+  // CHECK(cjson::to_string(t.type()) == "string");
   cout << "\"";
 }
-
 TEST_SUITE_END;

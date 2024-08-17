@@ -6,8 +6,8 @@
 
 #include <string>
 
-#include "json_object.h"
-#include "macro_scope.h"
+#include "json_object.hpp"
+#include "macro_scope.hpp"
 
 #include <cstdint>
 #include <optional>
@@ -268,7 +268,7 @@ class Parser {
   constexpr static string_t nullString() { return {'n', 'u', 'l', 'l'}; }
 
   static json_t InvalidValue() {
-    return json_t{json_t::Type::kInvalid, typename json_t::null_t{}};
+    return json_t(json_t::Type::kInvalid);
     ;
   }
   json_t parseValue() {

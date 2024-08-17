@@ -12,7 +12,7 @@
 #include <variant>
 #include <vector>  // vector
 
-#include "type_traits.h"
+#include "type_traits.hpp"
 
 namespace cjson {
 
@@ -65,12 +65,14 @@ class JsonObject {
   explicit JsonObject(bool_t&& value) : m_value(value), m_type(Type::kBool) {}
 
   explicit JsonObject(const string_t& value) : m_value(value), m_type(Type::kString) {}
-  explicit JsonObject(string_t&& value) : m_value(std::move(value)), m_type(Type::kString) {}
+  explicit JsonObject(string_t&& value) : m_value(std::move(value)), m_type(Type::kString) {
+
+  }
   explicit JsonObject(const char_t* value) : m_value(std::move(string_t(value))), m_type(Type::kString) {}
 
-  explicit JsonObject(const array_t& value) : m_value(std::move(value)), m_type(Type::kArray) {}
+  explicit JsonObject(array_t&& value) : m_value(std::move(value)), m_type(Type::kArray) {}
 
-  explicit JsonObject(const object_t& value) : m_value(std::move(value)), m_type(Type::kObject) {
+  explicit JsonObject(object_t&& value) : m_value(std::move(value)), m_type(Type::kObject) {
     std::cout << "fasdf";
   }
 
@@ -100,7 +102,7 @@ class JsonObject {
         break;
       default:
         m_type = Type::kInvalid;
-        m_value = {};
+        m_value = std::monostate{};
         break;
     }
   }
@@ -109,9 +111,13 @@ class JsonObject {
             std::enable_if_t<is_map<remove_cvref_t<map_t>> && std::is_constructible_v<object_value_t, container_value_t<map_t>>,
                              int> = 0>
   explicit JsonObject(map_t&& map)
-      : m_value(object_t(std::make_move_iterator(map.begin()), std::make_move_iterator(map.end()))), m_type(Type::kObject) {
-    std::cout << "map";
-
+      :  m_type(Type::kObject) {
+    object_t object;
+    std::cout << "fasd";
+    for (auto it = map.begin(); it != map.end(); ++it) {
+      object.emplace(std::move(it->first), JsonObject(std::move(it->second)));
+    }
+    m_value = std::move(object);
   }
 
   [[nodiscard]] Type type() const { return m_type; }
@@ -124,4 +130,4 @@ class JsonObject {
 };
 }  // namespace cjson
 
-#include <cjson/macro_unscope.h>
+#include <cjson/macro_unscope.hpp>

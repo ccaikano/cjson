@@ -4,55 +4,52 @@
 
 #pragma once
 
+#include <iterator>
 #include <type_traits>
 
 namespace cjson {
+template <typename T>
+using iterator_t = decltype(std::declval<T&>().begin());
+/// 移除cv和引用
+template <typename T>
+using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
+/// 迭代器value_type
+template <typename T>
+using iter_value_t = typename std::iterator_traits<remove_cvref_t<T>>::value_type;
+/// 容器value_type
+template <typename R>
+using container_value_t = iter_value_t<iterator_t<R>>;
 
-template<typename T, typename = void>
-struct is_boolean : public std::false_type {
-};
+/// 判断是否为string
+template <typename T, typename = void>
+constexpr bool is_string = false;
+template <typename T>
+constexpr bool is_string<T, std::void_t<typename T::traits_type>> =
+    std::is_same_v<typename T::traits_type, std::char_traits<typename T::value_type>>;
 
-template<typename T>
-struct is_boolean<T, std::enable_if_t<
-    std::is_same_v<bool, std::decay_t<T>>
->> : public std::true_type {
-};
-template<typename T>
-inline constexpr bool is_boolean_v = is_boolean<T>::value;
+/// 判断是否为container
+template <typename T, typename = void>
+constexpr bool is_container = false;
+template <typename T>
+constexpr bool is_container<T, std::void_t<typename T::value_type, container_value_t<T>>> =
+    std::is_same_v<typename T::value_type, container_value_t<T>> && !is_string<T>;
 
-template<typename T, typename = void>
-struct is_number : public std::false_type {
-};
+/// 判断是否为map
+template <typename T, typename = void>
+constexpr bool is_map = false;
+template <typename T>
+constexpr bool is_map<T, std::void_t<typename T::key_type, typename T::mapped_type>> = is_container<T>;
 
-template<typename T>
-struct is_number<T, std::enable_if_t<
-    !is_boolean_v<T> &&
-        std::is_integral_v<T> ||
-        std::is_floating_point_v<T>
->> : public std::true_type {
-};
+/// 判断是否为fixed_array
+template <typename T, typename = void>
+constexpr bool is_fixed_array = false;
+template <template <typename, size_t> typename arr_t, typename value_t, size_t size>
+constexpr bool is_fixed_array<arr_t<value_t, size>> = true;
 
-template<typename T, typename = void>
-struct is_string : public std::false_type {
-};
+/// 判断是否为collection
+template <typename T, typename = void>
+constexpr bool is_collection = false;
+template <typename T>
+constexpr bool is_collection<T> = is_container<T> && !is_map<T> && !is_fixed_array<T>;
 
-template<typename T>
-struct is_string<T, std::enable_if_t<
-    std::is_same_v<std::string, std::decay_t<T>> ||
-        std::is_same_v<std::string_view, std::decay_t<T>>
->> : public std::true_type {
-};
-
-template<typename T, typename = void>
-struct is_base_type : public std::false_type {
-};
-template<typename T>
-struct is_base_type<T, std::enable_if_t<
-    is_number<T>::value ||
-        is_string<T>::value ||
-        is_boolean<T>::value
->> : public std::true_type {
-
-};
-
-} // cc::json
+}  // namespace cjson

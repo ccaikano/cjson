@@ -35,9 +35,9 @@ class Parser {
     return std::move(t);
   }
 
+ private:
   [[nodiscard]] bool isValid() const { return m_curr == m_end; }
 
- private:
   bool matchString(const string_t& target) {
     for (const auto& ch : target) {
       if (m_curr != m_end && *m_curr == ch) {
@@ -58,6 +58,7 @@ class Parser {
     }
     return InvalidValue();
   }
+
   json_t parseObject() {
     ++m_curr;
     typename json_t::object_t object{};
@@ -267,7 +268,7 @@ class Parser {
   constexpr static string_t nullString() { return {'n', 'u', 'l', 'l'}; }
 
   static json_t InvalidValue() {
-    return json_t{JsonObjectType::kInvalid, typename json_t::null_t{}};
+    return json_t{json_t::Type::kInvalid, typename json_t::null_t{}};
     ;
   }
   json_t parseValue() {

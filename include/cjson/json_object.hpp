@@ -48,7 +48,7 @@ class JsonObject {
   using const_reference = const value_type&;
   enum class Type { kNull, kBool, kInt, kFloat, kString, kArray, kObject, kInvalid };
 
-  explicit JsonObject(std::nullptr_t = nullptr) : m_value(std::monostate{}), m_type(Type::kNull) {}
+  JsonObject(std::nullptr_t = nullptr) : m_value(std::monostate{}), m_type(Type::kNull) {}
   explicit JsonObject(std::monostate) : m_value(std::monostate{}), m_type(Type::kNull) {}
   JsonObject(const JsonObject& other) noexcept {
     m_value = other.m_value;
@@ -138,15 +138,16 @@ class JsonObject {
             std::enable_if_t<is_collection<remove_cvref_t<collection_t>> &&
                                  std::is_constructible_v<array_value_t, container_value_t<collection_t>>,
                              bool> = true>
-  explicit JsonObject(collection_t&& collection)
-      : m_value(array_t{std::make_move_iterator(collection.begin()), std::make_move_iterator(collection.end())}),
+  JsonObject(collection_t&& collection)
+      : m_value(array_t(std::make_move_iterator(collection.begin()), std::make_move_iterator(collection.end()))),
         m_type(Type::kArray) {
     collection.clear();
   }
+
   template <typename map_t,
             std::enable_if_t<is_map<remove_cvref_t<map_t>> && std::is_constructible_v<object_value_t, container_value_t<map_t>>,
                              int> = 0>
-  explicit JsonObject(map_t&& map)
+  JsonObject(map_t&& map)
       : m_value(object_t{std::make_move_iterator(map.begin()), std::make_move_iterator(map.end())}), m_type(Type::kObject) {
     map.clear();
   }
@@ -290,32 +291,7 @@ class JsonObject {
       return static_cast<value_t>(*this);
     }
   }
-  [[nodiscard]] reference operator[](std::size_t index) {
-    return asArray()[index];
-    JSON_THROW_EXCEPTION("JsonObject::operator[] called on non-array type")
-  }
-  [[nodiscard]] const_reference operator[](std::size_t index) const {
-    return asArray()[index];
-    JSON_THROW_EXCEPTION("JsonObject::operator[] called on non-array type")
-  }
 
-  [[nodiscard]] reference operator[](const string_t& key) {
-    return asObject()[key];
-    JSON_THROW_EXCEPTION("JsonObject::operator[] called on non-object type")
-  }
-  [[nodiscard]] const_reference operator[](const string_t& key) const {
-    return asObject()[key];
-    JSON_THROW_EXCEPTION("JsonObject::operator[] called on non-object type")
-  }
-
-  [[nodiscard]] reference operator[](string_t&& key) {
-    return asObject()[std::move(key)];
-    JSON_THROW_EXCEPTION("JsonObject::operator[] called on non-object type")
-  }
-  [[nodiscard]] const_reference operator[](string_t&& key) const {
-    return asObject()[key];
-    JSON_THROW_EXCEPTION("JsonObject::operator[] called on non-object type")
-  }
   [[nodiscard]] reference at(std::size_t index) { return asArray().at(index); }
   [[nodiscard]] const_reference at(std::size_t index) const { return asArray().at(index); }
   [[nodiscard]] reference at(const string_t& key) { return asObject().at(key); }
@@ -340,30 +316,122 @@ class JsonObject {
     }
     return false;
   }
-  template <typename... args_t>
+  template <typename... args_t,std::enable_if_t<std::is_constructible_v<object_value_t, args_t...>,int> = 0>
   decltype(auto) emplace(args_t&&... args) {
     if (CC_UNLIKELY(!(isNull() || isObject()))) {
       JSON_THROW_EXCEPTION("JsonObject::emplace() called on non-object type")
     }
-    if (isNull()) {
-      *this = JsonObject(Type::kObject);
-    }
     return asObject().emplace(std::forward<args_t>(args)...);
+  }
+  template <typename... args_t,std::enable_if_t<std::is_constructible_v<array_t, args_t...>,int> = 0>
+  decltype(auto) emplace(args_t&&... args) {
+    if (CC_UNLIKELY(!(isNull() || isArray()))) {
+      JSON_THROW_EXCEPTION("JsonObject::emplace_back() called on non-array type")
+    }
+    return asArray().emplace_back(std::forward<args_t>(args)...);
   }
   template <typename... args_t>
   decltype(auto) emplace_back(args_t&&... args) {
     if (CC_UNLIKELY(!(isNull() || isArray()))) {
       JSON_THROW_EXCEPTION("JsonObject::emplace_back() called on non-array type")
     }
-    if (isNull()) {
-      *this = JsonObject(Type::kArray);
-    }
     return asArray().emplace_back(std::forward<args_t>(args)...);
   }
+
+  reference insert(const JsonObject& json) {
+    if (CC_UNLIKELY(!(isNull() || isObject()))) {
+      JSON_THROW_EXCEPTION("JsonObject::insert() called on non-object type")
+    }
+    asObject().insert(json.asObject().begin(), json.asObject().end());
+    return *this;
+  }
+  reference insert(JsonObject&& json) {
+    if (CC_UNLIKELY(!(isNull() || isObject()))) {
+      JSON_THROW_EXCEPTION("JsonObject::insert() called on non-object type")
+    }
+    asObject().insert(std::make_move_iterator(json.asObject().begin()), std::make_move_iterator(json.asObject().end()));
+    return *this;
+  }
+
+  void push_back(const JsonObject& json) {
+    if (CC_UNLIKELY(!(isNull() || isArray()))) {
+      JSON_THROW_EXCEPTION("JsonObject::push_back() called on non-array type")
+    }
+    asArray().push_back(json);
+  }
+
+  void push_back(JsonObject&& json) {
+    if (CC_UNLIKELY(!(isNull() || isArray()))) {
+      JSON_THROW_EXCEPTION("JsonObject::push_back() called on non-array type")
+    }
+    asArray().push_back(std::move(json));
+  }
+
+  void pop_back() {
+    if (CC_UNLIKELY(!(isNull() || isArray()))) {
+      JSON_THROW_EXCEPTION("JsonObject::pop_back() called on non-array type")
+    }
+    asArray().pop_back();
+  }
+  reference back() {
+    if (CC_UNLIKELY(asArray().empty())) {
+      JSON_THROW_EXCEPTION("JsonObject::back() called on empty array")
+    }
+    return asArray().back();
+  }
+  const_reference back() const {
+    if (CC_UNLIKELY(asArray().empty())) {
+      JSON_THROW_EXCEPTION("JsonObject::back() called on empty array")
+    }
+    return asArray().back();
+  }
+
+  reference front() {
+    if (CC_UNLIKELY(asArray().empty())) {
+      JSON_THROW_EXCEPTION("JsonObject::front() called on empty array")
+    }
+    return asArray().front();
+  }
+
+  const_reference front() const {
+    if (CC_UNLIKELY(asArray().empty())) {
+      JSON_THROW_EXCEPTION("JsonObject::front() called on empty array")
+    }
+    return asArray().front();
+  }
+
   void clear() { *this = JsonObject(); }
 
   string_t dump(const std::size_t indent = 4) const { return toJsonString(indent, 0); }
   string_t toString() const { return toJsonString(4, 0); }
+
+  bool operator==(const JsonObject& other) {
+    switch (type()) {
+      case Type::kNull:
+        return other.isNull();
+      case Type::kInt:
+      case Type::kBool:
+      case Type::kFloat:
+      case Type::kString:
+        return m_value == other.m_value;
+      case Type::kArray:
+        return asArray() == other.asArray();
+      case Type::kObject:
+        return asObject() == other.asObject();
+      default:
+        JSON_THROW_EXCEPTION("JsonObject::operator==() called on unknown type")
+    }
+  }
+  bool operator!=(const JsonObject& other) { return !(*this == other); }
+
+  [[nodiscard]] reference operator[](std::size_t index) { return asArray()[index]; }
+  [[nodiscard]] const_reference operator[](std::size_t index) const { return asArray()[index]; }
+
+  [[nodiscard]] reference operator[](const string_t& key) { return asObject()[key]; }
+  [[nodiscard]] const_reference operator[](const string_t& key) const { return asObject()[key]; }
+
+  [[nodiscard]] reference operator[](string_t&& key) { return asObject()[std::move(key)]; }
+  [[nodiscard]] const_reference operator[](string_t&& key) const { return asObject()[key]; }
 
  private:
   string_t toJsonStringArray(std::size_t indent, std::size_t depth) const {

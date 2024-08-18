@@ -4,27 +4,32 @@
 
 #pragma once
 #include <cstdlib>
-#include <stdexcept>
 #include <iostream>
+#include <stdexcept>
 
-// 如果定义了 JSON_EXCEPTION，则使用异常处理。否则，使用 abort()。
-// #if defined(JSON_EXCEPTION)
-// #define THROW_ERROR(msg)                                                  \
-//   do {                                                                    \
-//     throw std::logic_error(std::string(msg) + std::string(" [") +         \
-//                            std::string(__FILE__ ":") +                    \
-//                            std::to_string(__LINE__) + std::string("] ")); \
-//   } while (0);
-// #else
-// #define THROW_ERROR(msg)                                                    \
-//   do {                                                                      \
-//     std::cerr << std::string(msg) + std::string(" [") +                     \
-//                      std::string(__FILE__ ":") + std::to_string(__LINE__) + \
-//                      std::string("] ")                                      \
-//               << std::endl;                                                 \
-//     abort();                                                                \
-//   } while (0);
-// #endif
+#if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND)) && !defined(JSON_NOEXCEPTION)
+#include <exception>
+#define JSON_THROW(exception) throw exception
+#define JSON_TRY try
+#define JSON_CATCH(exception) catch (exception)
+#define JSON_INTERNAL_CATCH(exception) catch (exception)
+#define JSON_THROW_EXCEPTION(msg)       \
+  do {                                  \
+    JSON_THROW(std::runtime_error(msg)); \
+  } while (0);
+#else
+#include <cstdlib>
+#define JSON_THROW(exception) std::abort()
+#define JSON_TRY if (true)
+#define JSON_CATCH(exception) if (false)
+#define JSON_INTERNAL_CATCH(exception) if (false)
+#define JSON_THROW_EXCEPTION(msg)  \
+  do {                             \
+    std::cerr << msg << std::endl; \
+    std::abort();                  \
+  } while (0);
+#endif
+
 
 // 首先，检查是否支持 C++20
 #if __cplusplus >= 202002L

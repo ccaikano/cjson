@@ -51,10 +51,10 @@ class Parser {
 
   json_t parseBool() {
     if (matchString(trueString())) {
-      return json_t{true};
+      return json_t(true);
     }
     if (matchString(falseString())) {
-      return json_t{false};
+      return json_t(false);
     }
     return InvalidValue();
   }
@@ -246,7 +246,7 @@ class Parser {
       }
     }
     char* endptr{};
-    std::basic_string_view<char_t> token_buffer{first, m_curr};
+    std::basic_string_view<char_t> token_buffer(&(*first), std::distance(first, m_curr));
 
     const double float_number = std::strtod(token_buffer.data(), &endptr);
     if (endptr != token_buffer.end()) {
@@ -267,10 +267,7 @@ class Parser {
 
   constexpr static string_t nullString() { return {'n', 'u', 'l', 'l'}; }
 
-  static json_t InvalidValue() {
-    return json_t(json_t::Type::kInvalid);
-    ;
-  }
+  static json_t InvalidValue() { return json_t{json_t::Type::kInvalid}; }
   json_t parseValue() {
     skipWhitespace();
     switch (*m_curr) {
@@ -313,8 +310,7 @@ class Parser {
    */
   bool skipWhitespace() {
     auto current = *m_curr;
-    while (m_curr != m_end && (current == ' ' || current == '\t' ||
-                               current == '\n' || current == '\r')) {
+    while (m_curr != m_end && (current == ' ' || current == '\t' || current == '\n' || current == '\r')) {
       ++m_curr;
       current = *m_curr;
     }
@@ -374,9 +370,7 @@ class Parser {
         return false;
       }
       // 高代理位+低代理位转换成真正的unicode
-      ext_cp =
-          (((high_surrogate_pair - 0xD800) << 10) | (unicode_vlaue - 0xDC00)) +
-          0x10000;
+      ext_cp = (((high_surrogate_pair - 0xD800) << 10) | (unicode_vlaue - 0xDC00)) + 0x10000;
       hi_cp = high_surrogate_pair;
       lo_cp = unicode_vlaue;
       high_surrogate_pair = 0;
@@ -387,29 +381,19 @@ class Parser {
       if (ext_cp <= 0x7F) {
         result.push_back(static_cast<char>(ext_cp));
       } else if (ext_cp <= 0x7FF) {
-        result.push_back(
-            static_cast<char>(((ext_cp >> 6) & 0b00011111) | 0b11000000u));
-        result.push_back(
-            static_cast<char>((ext_cp & 0b00111111) | 0b10000000u));
+        result.push_back(static_cast<char>(((ext_cp >> 6) & 0b00011111) | 0b11000000u));
+        result.push_back(static_cast<char>((ext_cp & 0b00111111) | 0b10000000u));
       } else if (ext_cp <= 0xFFFF) {
-        result.push_back(
-            static_cast<char>(((ext_cp >> 12) & 0b00001111) | 0b11100000u));
-        result.push_back(
-            static_cast<char>(((ext_cp >> 6) & 0b00111111) | 0b10000000u));
-        result.push_back(
-            static_cast<char>((ext_cp & 0b00111111) | 0b10000000u));
+        result.push_back(static_cast<char>(((ext_cp >> 12) & 0b00001111) | 0b11100000u));
+        result.push_back(static_cast<char>(((ext_cp >> 6) & 0b00111111) | 0b10000000u));
+        result.push_back(static_cast<char>((ext_cp & 0b00111111) | 0b10000000u));
       } else {
-        result.push_back(
-            static_cast<char>(((ext_cp >> 18) & 0b00000111) | 0b11110000u));
-        result.push_back(
-            static_cast<char>(((ext_cp >> 12) & 0b00111111) | 0b10000000u));
-        result.push_back(
-            static_cast<char>(((ext_cp >> 6) & 0b00111111) | 0b10000000u));
-        result.push_back(
-            static_cast<char>((ext_cp & 0b00111111) | 0b10000000u));
+        result.push_back(static_cast<char>(((ext_cp >> 18) & 0b00000111) | 0b11110000u));
+        result.push_back(static_cast<char>(((ext_cp >> 12) & 0b00111111) | 0b10000000u));
+        result.push_back(static_cast<char>(((ext_cp >> 6) & 0b00111111) | 0b10000000u));
+        result.push_back(static_cast<char>((ext_cp & 0b00111111) | 0b10000000u));
       }
-    } else if constexpr (std::is_same_v<typename string_t::value_type,
-                                        wchar_t>) {
+    } else if constexpr (std::is_same_v<typename string_t::value_type, wchar_t>) {
       if constexpr (sizeof(wchar_t) == 4) {
         result.push_back(static_cast<wchar_t>(ext_cp));
       } else if constexpr (sizeof(wchar_t) == 2) {
@@ -420,8 +404,7 @@ class Parser {
           result.push_back(static_cast<wchar_t>(lo_cp));
         }
       } else {
-        static_assert(!sizeof(typename string_t::value_type),
-                      "Unsupported wchar");
+        static_assert(!sizeof(typename string_t::value_type), "Unsupported wchar");
       }
     } else {
       static_assert(!sizeof(typename string_t::value_type), "Unsupported type");

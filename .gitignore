@@ -1,8 +1,10 @@
 cmake-build*
 .idea
 build
+/build
 .vscode
 .vs
+.cache
 
 ### C++ template
 # Prerequisites

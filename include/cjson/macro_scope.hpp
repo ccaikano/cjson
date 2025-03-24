@@ -13,8 +13,8 @@
 #define JSON_TRY try
 #define JSON_CATCH(exception) catch (exception)
 #define JSON_INTERNAL_CATCH(exception) catch (exception)
-#define JSON_THROW_EXCEPTION(msg)       \
-  do {                                  \
+#define JSON_THROW_EXCEPTION(msg)        \
+  do {                                   \
     JSON_THROW(std::runtime_error(msg)); \
   } while (0);
 #else
@@ -30,22 +30,77 @@
   } while (0);
 #endif
 
-
-// 首先，检查是否支持 C++20
-#if __cplusplus >= 202002L
-// 对于支持 C++20 的编译器，直接使用 [[likely]] 和 [[unlikely]]
-#define CC_LIKELY(x) (x) [[likely]]
-#define CC_UNLIKELY(x) (x) [[unlikely]]
+#if defined(CC_DEBUG) && defined(IS_WIN)
+#include <intrin.h>
+// This is a super stable value and setting it here avoids pulling in all of windows.h.
+#ifndef FAST_FAIL_FATAL_APP_EXIT
+#define FAST_FAIL_FATAL_APP_EXIT 7
+#endif
+#endif
+void cc_abort() {
+#if defined(CC_DEBUG) && defined(IS_WIN)
+  __fastfail(FAST_FAIL_FATAL_APP_EXIT);
+#elif defined(__clang__)
+  __builtin_trap();
 #else
-// 对于旧编译器，检查 GCC 或 Clang
-#if defined(__GNUC__) || defined(__clang__)
-// GCC 和 Clang 支持 __builtin_expect
-#define CC_LIKELY(x) __builtin_expect(!!(x), 1)
+  abort();
+#endif
+}
+
+#if !defined(CC_ABORT)
+#if defined(IS_WIN)
+// This style lets Visual Studio follow errors back to the source file.
+#define CC_DUMP_LINE_FORMAT "%s(%d)"
+#else
+#define CC_DUMP_LINE_FORMAT "%s:%d"
+#endif
+#define CC_ABORT(message, ...)                                                                         \
+  do {                                                                                                 \
+    printf(SK_DUMP_LINE_FORMAT ": fatal error: \"" message "\"\n", __FILE__, __LINE__, ##__VA_ARGS__); \
+    cc_abort();                                                                                        \
+  } while (false)
+#endif
+
+#if defined(COMPILER_GCC) || defined(__clang__)
+#define CC_ASSERT_RELEASE(cond) \
+  static_cast<void>(__builtin_expect(static_cast<bool>(cond), 1) ? static_cast<void>(0) : [] { CC_ABORT("check(%s)", #cond); }())
+
+#define CC_ASSERT_F_RELEASE(cond, fmt, ...)                                                     \
+  static_cast<void>(__builtin_expect(static_cast<bool>(cond), 1) ? static_cast<void>(0) : [&] { \
+    CC_ABORT("assert_f(%s): " fmt, #cond, ##__VA_ARGS__);                                       \
+  }())
+#else
+#define CC_ASSERT_RELEASE(cond) static_cast<void>((cond) ? static_cast<void>(0) : [] { CC_ABORT("check(%s)", #cond); }())
+
+#define CC_ASSERT_F_RELEASE(cond, fmt, ...) \
+  static_cast<void>((cond) ? static_cast<void>(0) : [&] { CC_ABORT("assert_f(%s): " fmt, #cond, ##__VA_ARGS__); }())
+#endif
+
+#if defined(CC_DEBUG)
+#define CC_ASSERT(cond) CC_ASSERT_RELEASE(cond)
+#define CC_ASSERT_F(cond, fmt, ...) CC_ASSERT_F_RELEASE(cond, fmt, ##__VA_ARGS__)
+#define CC_DEBUG_FAIL(message) CC_ABORT("%s", message)
+#define CC_DEBUGFAIL_F(fmt, ...) CC_ABORT(fmt, ##__VA_ARGS__)
+#else
+#define CC_ASSERT(cond) static_cast<void>(0)
+#define CC_ASSERT_F(cond, fmt, ...) static_cast<void>(0)
+#define CC_DEBUG_FAIL(message)
+#define CC_DEBUGFAIL_F(fmt, ...)
+#endif
+
+// Macro for hinting that an expression is likely to be false.
+#if !defined(UNLIKELY)
+#if defined(COMPILER_GCC) || defined(__clang__)
 #define CC_UNLIKELY(x) __builtin_expect(!!(x), 0)
 #else
-// 对于其他编译器，CC_LIKELY 和 CC_UNLIKELY 宏不做任何事情
-    #define CC_LIKELY(x)       (x)
-    #define CC_UNLIKELY(x)     (x)
-#endif
-#endif
+#define CC_UNLIKELY(x) (x)
+#endif  // defined(COMPILER_GCC)
+#endif  // !defined(UNLIKELY)
 
+#if !defined(LIKELY)
+#if defined(COMPILER_GCC) || defined(__clang__)
+#define CC_LIKELY(x) __builtin_expect(!!(x), 1)
+#else
+#define CC_LIKELY(x) (x)
+#endif  // defined(COMPILER_GCC)
+#endif  // !defined(LIKELY)

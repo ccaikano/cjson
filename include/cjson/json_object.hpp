@@ -46,27 +46,21 @@ class JsonObject {
   using value_type = JsonObject;
   using reference = value_type&;
   using const_reference = const value_type&;
-  enum class Type { kNull, kBool, kInt, kFloat, kString, kArray, kObject, kInvalid };
+  enum class Type : std::uint8_t { kNull, kBool, kInt, kFloat, kString, kArray, kObject, kInvalid };
 
-  JsonObject(std::nullptr_t = nullptr) : m_value(std::monostate{}), m_type(Type::kNull) {}
-  explicit JsonObject(std::monostate) : m_value(std::monostate{}), m_type(Type::kNull) {}
-  JsonObject(const JsonObject& other) noexcept {
-    m_value = other.m_value;
-    m_type = other.m_type;
-    std::cout << "copy" << std::endl;
-  }
-  JsonObject& operator=(const JsonObject& other) noexcept {
-    m_value = other.m_value;
-    m_type = other.m_type;
-    std::cout << "copy" << std::endl;
-    return *this;
-  }
+  JsonObject() : m_value(std::monostate{}), m_type(Type::kNull) {}
+  JsonObject(std::nullptr_t) : m_value(std::monostate{}), m_type(Type::kNull) {}
+  JsonObject(std::monostate /*unused*/) : m_value(std::monostate{}), m_type(Type::kNull) {}
+  JsonObject(const JsonObject& other) noexcept = default;
+  JsonObject& operator=(const JsonObject& other) noexcept = default;
   JsonObject(JsonObject&& other) noexcept = default;
   JsonObject& operator=(JsonObject&& other) noexcept = default;
   ~JsonObject() noexcept = default;
 
   JsonObject(int num) : m_value(num), m_type(Type::kInt) {}
-  JsonObject(unsigned num) : m_value(num), m_type(Type::kInt) {}
+  JsonObject(unsigned int num) : m_value(num), m_type(Type::kInt) {}
+  JsonObject(short num) : m_value(num), m_type(Type::kInt) {}
+  JsonObject(unsigned short num) : m_value(num), m_type(Type::kInt) {}
   JsonObject(long num) : m_value(num), m_type(Type::kInt) {}
   JsonObject(unsigned long num) : m_value(num), m_type(Type::kInt) {}
   JsonObject(long long num) : m_value(num), m_type(Type::kInt) {}
@@ -75,15 +69,15 @@ class JsonObject {
   JsonObject(double num) : m_value(num), m_type(Type::kFloat) {}
   JsonObject(long double num) : m_value(num), m_type(Type::kFloat) {}
 
-  JsonObject(bool_t&& value) : m_value(value), m_type(Type::kBool) {}
+  JsonObject(bool_t value) : m_value(value), m_type(Type::kBool) {}
 
   JsonObject(const string_t& value) : m_value(value), m_type(Type::kString) {}
   JsonObject(string_t&& value) : m_value(std::move(value)), m_type(Type::kString) {}
-  JsonObject(const char_t* value) : m_value(std::move(string_t(value))), m_type(Type::kString) {}
+  JsonObject(const char_t* value) : m_value(string_t(value)), m_type(Type::kString) {}
 
-  explicit JsonObject(array_t&& value) : m_value(std::move(value)), m_type(Type::kArray) {}
+  JsonObject(array_t&& value) : m_value(std::move(value)), m_type(Type::kArray) {}
 
-  explicit JsonObject(object_t&& value) : m_value(std::move(value)), m_type(Type::kObject) {}
+  JsonObject(object_t&& value) : m_value(std::move(value)), m_type(Type::kObject) {}
 
   explicit JsonObject(const Type type) : m_type(type) {
     switch (type) {
@@ -114,11 +108,11 @@ class JsonObject {
         break;
     }
   }
+
   JsonObject(std::initializer_list<JsonObject> init_list) {
     const bool is_an_object = std::all_of(init_list.begin(), init_list.end(), [](const JsonObject& element) {
       return element.isArray() && element.size() == 2 && element[0].isString();
     });
-    // std::cout << is_an_object << std::endl;
     if (is_an_object) {
       // m_value = object_t(std::make_move_iterator(init_list.begin()), std::make_move_iterator(init_list.end()));
       m_type = Type::kObject;
@@ -316,14 +310,14 @@ class JsonObject {
     }
     return false;
   }
-  template <typename... args_t,std::enable_if_t<std::is_constructible_v<object_value_t, args_t...>,int> = 0>
+  template <typename... args_t, std::enable_if_t<std::is_constructible_v<object_value_t, args_t...>, int> = 0>
   decltype(auto) emplace(args_t&&... args) {
     if (CC_UNLIKELY(!(isNull() || isObject()))) {
       JSON_THROW_EXCEPTION("JsonObject::emplace() called on non-object type")
     }
     return asObject().emplace(std::forward<args_t>(args)...);
   }
-  template <typename... args_t,std::enable_if_t<std::is_constructible_v<array_t, args_t...>,int> = 0>
+  template <typename... args_t, std::enable_if_t<std::is_constructible_v<array_t, args_t...>, int> = 0>
   decltype(auto) emplace(args_t&&... args) {
     if (CC_UNLIKELY(!(isNull() || isArray()))) {
       JSON_THROW_EXCEPTION("JsonObject::emplace_back() called on non-array type")

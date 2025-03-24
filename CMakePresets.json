@@ -1,0 +1,77 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "ninja-multi-config",
+            "displayName": "Ninja Multi-Config",
+            "description": "Generate build files with Ninja Multi-Config generator",
+            "generator": "Ninja Multi-Config",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "xcode",
+            "displayName": "Xcode",
+            "description": "Generate Xcode project",
+            "generator": "Xcode",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "ninja-multi-config",
+            "description": "Build using the Debug configuration",
+            "configuration": "Debug" // 指定构建类型
+        },
+        {
+            "name": "release",
+            "configurePreset": "ninja-multi-config",
+            "description": "Build using the Release configuration",
+            "configuration": "Release" // 指定构建类型
+        },
+        {
+            "name": "xcode-debug",
+            "configurePreset": "xcode",
+            "description": "Build the Xcode Debug configuration",
+            "configuration": "Debug" // 指定构建类型
+        },
+        {
+            "name": "xcode-release",
+            "configurePreset": "xcode",
+            "description": "Build the Xcode Release configuration",
+            "configuration": "Release" // 指定构建类型
+        }
+    ]
+    // "testPresets": [
+    //     {
+    //         "name": "ninja-tests",
+    //         "configurePreset": "ninja-multi-config",
+    //         "description": "Run tests using the Ninja Multi-Config Debug configuration",
+    //         "configuration": "Debug",
+    //         "output": {
+    //             "verbose": true
+    //         }
+    //     },
+    //     {
+    //         "name": "xcode-tests",
+    //         "configurePreset": "xcode",
+    //         "description": "Run tests using the Xcode Debug configuration",
+    //         "configuration": "Debug",
+    //         "output": {
+    //             "verbose": true
+    //         }
+    //     }
+    // ]
+}

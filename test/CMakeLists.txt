@@ -8,13 +8,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(doctest)
 
+# file(GLOB_RECURSE TEST_FILES "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cc")
+# foreach (file  ${TEST_FILES})
+# 获取文件名（不包括路径和扩展名）
+# get_filename_component(filename ${file} NAME_WE)
+add_executable(unit_test test_main.cc test_json_object.cc)
+target_link_libraries(unit_test doctest_with_main cjson)
 
-#file(GLOB_RECURSE TEST_FILES "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cc")
-#foreach (file  ${TEST_FILES})
-    # 获取文件名（不包括路径和扩展名）
-#    get_filename_component(filename ${file} NAME_WE)
-    add_executable(unit_test test_main.cc test_json_object.cc)
-    target_link_libraries(unit_test doctest_with_main cjson)
-#endforeach()
+add_executable(main main.cc)
+target_link_libraries(main cjson)
 
-
+# endforeach()
